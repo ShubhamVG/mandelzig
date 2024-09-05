@@ -32,12 +32,15 @@ pub fn newBMP(
 ) !void {
     const file = try std.fs.cwd().createFile(
         "output.bmp",
-        .{ .read = true },
+        .{ .read = false },
     );
 
     defer file.close();
 
     const writer = file.writer();
+    var bw = std.io.bufferedWriter(writer);
+    const w = bw.writer();
+
     const img_size: u32 = @intCast(height * width);
     const bmp_header = BMPHeader{ .bf_size = 14 + 40 + img_size };
     const bmp_info_header = BMPInfoHeader{
@@ -47,40 +50,42 @@ pub fn newBMP(
     };
 
     // writing bitmap file header
-    try writer.writeAll(std.mem.asBytes(&bmp_header.bf_type));
-    try writer.writeAll(std.mem.asBytes(&bmp_header.bf_size));
-    try writer.writeAll(std.mem.asBytes(&bmp_header.bf_reserved));
-    try writer.writeAll(std.mem.asBytes(&bmp_header.bf_offBits));
+    try w.writeAll(std.mem.asBytes(&bmp_header.bf_type));
+    try w.writeAll(std.mem.asBytes(&bmp_header.bf_size));
+    try w.writeAll(std.mem.asBytes(&bmp_header.bf_reserved));
+    try w.writeAll(std.mem.asBytes(&bmp_header.bf_offBits));
 
     // writing bitmap info header
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_size));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_width));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_height));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_planes));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_bit_count));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_compression));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_image_size));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_horizontal_resolution));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_vertical_resolution));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_color_palette));
-    try writer.writeAll(std.mem.asBytes(&bmp_info_header.bi_color_important));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_size));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_width));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_height));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_planes));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_bit_count));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_compression));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_image_size));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_horizontal_resolution));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_vertical_resolution));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_color_palette));
+    try w.writeAll(std.mem.asBytes(&bmp_info_header.bi_color_important));
 
     // writing pixels with padding
     const padding: usize = @intCast(@mod(@mod((4 - width * @sizeOf(Pixel)), 4), 4));
     var i: usize = 1;
 
     for (pixels) |pixel| {
-        try writer.writeByte(pixel.r);
-        try writer.writeByte(pixel.g);
-        try writer.writeByte(pixel.b);
+        try w.writeByte(pixel.r);
+        try w.writeByte(pixel.g);
+        try w.writeByte(pixel.b);
 
         if (i == width) {
             i = 0;
-            try writer.writeByteNTimes(0x00, padding);
+            try w.writeByteNTimes(0x00, padding);
         } else {
             i += 1;
         }
     }
+
+    try bw.flush();
 }
 
 const BMPError = error{};
